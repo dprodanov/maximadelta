@@ -7,7 +7,7 @@
  * 		  IMEC
 
  * @contents
- * This library implements Diracs's delta function
+ * This library implements Dirac's delta function
  * 
  * @license This library is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU Lesser General Public
@@ -29,19 +29,19 @@ _dev(u):= if u#0 then 0 else inf $
 _unit(u):= if u<0 then 0 else 1 $
   
 (matchdeclare (x, atom),
-	defrule (dev1, delta(x), _dev(x)),
-	defrule (dev2, unit(x), _unit(x))
+	defrule (ddev1, delta(x), _dev(x)),
+	defrule (ddunit, unit(x), _unit(x))
  )$
  
 (matchdeclare (x, lambda([u], not(constantp(u))), c, constantp),
-	defrule (dev3, delta(c*x), 1/abs(c)*delta(x))
+	defrule (ddscale, delta(c*x), 1/abs(c)*delta(x))
  )$
  
 (matchdeclare (z, symbolp, u, atom,  fn, symbolp, n, integerp),
-	defrule (dint1, 'integrate(delta(z-u), u, - inf, inf ), z),
-	defrule (dint2, 'integrate(delta(z-u)*fn(u), u, -inf, inf), fn(z)),
-	defrule (dint3, 'integrate(delta(u), u), unit(u)),
-	defrule (dint4, 'integrate(delta(u), u, -inf, inf ), 1),
+	defrule (ddint1, 'integrate(delta(z-u), u, - inf, inf ), z),
+	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u, -inf, inf), fn(z)),
+	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
+	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
 	defrule (dderiv2, 'integrate('diff(delta(u), u, n) *fn(u), u),
 	-'integrate(diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
  
@@ -49,9 +49,18 @@ _unit(u):= if u<0 then 0 else 1 $
 
 (matchdeclare (x, atom, n, integerp),
 	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(u)*factorial (n) )
- 
 )$
- 
+
+delta_rules : sublist (rules, lambda ([a], smismatch ("dd", sconcat (a)) = 3 and 
+(a # 'ddev1 and a # 'ddunit )))$
+
+(matchdeclare ([%darg, %deltam], true),
+defmatch (ddarg, %deltam*delta (%darg))
+)$
+
+simp_delta(x):=apply(apply1, cons('x,delta_rules))$
+
+eval_delta(x):=apply1(ret, ddev1, ddunit)$
 /*
 fdroot(V, x):=block( [rts, n, i:1, s:0 ],
 	rts:solve(V=0,x),
@@ -67,3 +76,7 @@ fdroot(V, x):=block( [rts, n, i:1, s:0 ],
 	)
 )$ 
 */
+
+put('deltafn, 1.0, 'version);
+put('deltafn, "Dimiter Prodanov", 'author);
+put('deltafn, "(C) - Dimiter Prodanov, 2014", 'copyright);
