@@ -7,7 +7,7 @@
  * 		  IMEC
 
  * @contents
- * This library implements Dirac's delta function
+ * This library implements Diracs's delta function
  * 
  * @license This library is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU Lesser General Public
@@ -38,12 +38,12 @@ _unit(u):= if u<0 then 0 else 1 $
  )$
  
 (matchdeclare (z, symbolp, u, atom,  fn, symbolp, n, integerp),
-	defrule (ddint1, 'integrate(delta(z-u), u, - inf, inf ), z),
-	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u, -inf, inf), fn(z)),
+	defrule (ddint1, 'integrate(delta(z-u), u ), z),
+	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z)),
 	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
 	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
 	defrule (dderiv2, 'integrate('diff(delta(u), u, n) *fn(u), u),
-	-'integrate(diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
+	-'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
  
 )$
 
