@@ -1,0 +1,69 @@
+/*
+ * (C) Dimiter Prodanov
+ *
+ * @version 1.0 Date 24 April 2014
+ *
+ * @author Dimiter Prodanov
+ * 		  IMEC
+
+ * @contents
+ * This library implements Diracs's delta function
+ * 
+ * @license This library is free software; you can redistribute it and/or
+ *      modify it under the terms of the GNU Lesser General Public
+ *      License as published by the Free Software Foundation; either
+ *      version 2.1 of the License, or (at your option) any later version.
+ *
+ *      This library is distributed in the hope that it will be useful,
+ *      but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *       Lesser General Public License for more details.
+ *
+ *      You should have received a copy of the GNU Lesser General Public
+ *      License along with this library; if not, write to the Free Software
+ *      Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+ declare (delta, evenfun)$
+ 
+_dev(u):= if u#0 then 0 else inf $
+_unit(u):= if u<0 then 0 else 1 $
+  
+(matchdeclare (x, atom),
+	defrule (dev1, delta(x), _dev(x)),
+	defrule (dev2, unit(x), _unit(x))
+ )$
+ 
+(matchdeclare (x, lambda([u], not(constantp(u))), c, constantp),
+	defrule (dev3, delta(c*x), 1/abs(c)*delta(x))
+ )$
+ 
+(matchdeclare (z, symbolp, u, atom,  fn, symbolp, n, integerp),
+	defrule (dint1, 'integrate(delta(z-u), u, - inf, inf ), z),
+	defrule (dint2, 'integrate(delta(z-u)*fn(u), u, -inf, inf), fn(z)),
+	defrule (dint3, 'integrate(delta(u), u), unit(u)),
+	defrule (dint4, 'integrate(delta(u), u, -inf, inf ), 1),
+	defrule (dderiv2, 'integrate('diff(delta(u), u, n) *fn(u), u),
+	-'integrate(diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
+ 
+)$
+
+(matchdeclare (x, atom, n, integerp),
+	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(u)*factorial (n) )
+ 
+)$
+ 
+/*
+fdroot(V, x):=block( [rts, n, i:1, s:0 ],
+	rts:solve(V=0,x),
+	if emptyp(rts) then return (false)
+	else (
+		n:length(rts),
+		dfn:diff (V, x),
+		for i:1 thru n do (
+			xi:part(rts[i],2),
+			s:s+delta(x-xi)/abs(dfn(xi))
+		),
+		return (s)
+	)
+)$ 
+*/
