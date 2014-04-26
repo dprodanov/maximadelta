@@ -42,9 +42,8 @@ _unit(u):= if u<0 then 0 else 1 $
 	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z)),
 	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
 	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
-	defrule (dderiv2, 'integrate('diff(delta(u), u, n) *fn(u), u),
+	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u),
 	-'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
- 
 )$
 
 (matchdeclare (x, atom, n, integerp),
@@ -61,8 +60,14 @@ defmatch (ddarg, %deltam*delta (%darg))
 simp_delta(x):=apply(apply1, cons('x,delta_rules))$
 
 eval_delta(x):=apply1(ret, ddev1, ddunit)$
-/*
-fdroot(V, x):=block( [rts, n, i:1, s:0 ],
+
+
+(matchdeclare (V, lambda([x], not atom (x) and not listp(x)  and not constantp(x) ), u, atom, fn, symbolp),
+	defrule (dderiv3, delta(V), fdroot(V, u)),
+	defrule (dderiv4, delta(fn(u)), fdroot(fn(u), u))
+)$
+
+fdroot(V, x):=block( [rts, n, i:1, s:0, sd ],
 	rts:solve(V=0,x),
 	if emptyp(rts) then return (false)
 	else (
@@ -70,12 +75,13 @@ fdroot(V, x):=block( [rts, n, i:1, s:0 ],
 		dfn:diff (V, x),
 		for i:1 thru n do (
 			xi:part(rts[i],2),
-			s:s+delta(x-xi)/abs(dfn(xi))
+			sd:subst(x=xi, dfn), "print (xi, dfn, sd)",
+			s:s+delta(x-xi)/abs(sd)
 		),
 		return (s)
 	)
 )$ 
-*/
+
 
 put('deltafn, 1.0, 'version);
 put('deltafn, "Dimiter Prodanov", 'author);
