@@ -1,7 +1,7 @@
 /*
  * (C) Dimiter Prodanov
  *
- * @version 1.0 Date 24 April 2014
+ * @version 1.1 Date 29 April 2014
  *
  * @author Dimiter Prodanov
  * 		  IMEC
@@ -37,19 +37,23 @@ _unit(u):= if u<0 then 0 else 1 $
 	defrule (ddscale, delta(c*x), 1/abs(c)*delta(x))
  )$
  
-(matchdeclare (z, symbolp, u, atom,  fn, symbolp, n, integerp),
+(matchdeclare ([z,  u ], symbolp,  fn, symbolp, n, intvalp),
 	defrule (ddint1, 'integrate(delta(z-u), u ), z),
 	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z)),
+	defrule (ddint21, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff (fn(z), z, n) ),
 	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
 	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
 	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u),
-	-'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) )
+	-'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
+	defrule (dderiv21, 'integrate('diff(delta(z-u), u, n)*fn(u), u),
+	-'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) )
 )$
 
-(matchdeclare (x, atom, n, integerp),
-	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(u)*factorial (n) )
+(matchdeclare (x, atom, n, intvalp),
+	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(x)*factorial (n) )
 )$
 
+intvalp(x):= integerp(x) or featurep(x, integer)$
 
 (matchdeclare ([%darg, %deltam], true),
 defmatch (ddarg, %deltam*delta (%darg))
@@ -60,7 +64,7 @@ defmatch (ddarg, %deltam*delta (%darg))
 	defrule (dderiv4, delta(fn(u)), fdroot(fn(u), u))
 )$
 
-fdroot(V, x):=block( [rts, n, i:1, s:0, dfn, sd ],
+fdroot(V, x):=block( [rts, n, i:1, s:0, dfn, sd, xi ],
 	rts:solve(V=0,x),
 	if emptyp(rts) then return (false)
 	else (
@@ -85,10 +89,10 @@ fdroot2(V):=block ( [ vl: listofvars (V), v ] ,
 delta_rules : sublist (rules, lambda ([a], smismatch ("dd", sconcat (a)) = 3 and 
 (a # 'ddev1 and a # 'ddunit )))$
 
-simp_delta(x):=apply(apply1, cons('x,delta_rules))$
+simp_delta(x):=apply(apply1, cons('x, delta_rules))$
 
 eval_delta(x):=apply1(ret, ddev1, ddunit)$
 
-put('deltafn, 1.0, 'version);
+put('deltafn, 1.1, 'version);
 put('deltafn, "Dimiter Prodanov", 'author);
 put('deltafn, "(C) - Dimiter Prodanov, 2014", 'copyright);
