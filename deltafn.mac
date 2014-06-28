@@ -1,7 +1,8 @@
 /*
  * (C) Dimiter Prodanov
  *
- * @version 1.1 Date 29 April 2014
+ * @version 1.1 Data 28 June 2014 
+ *		1.1 Date 29 April 2014
  *
  * @author Dimiter Prodanov
  * 		  IMEC
@@ -23,30 +24,51 @@
  *      License along with this library; if not, write to the Free Software
  *      Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+ 
  declare (delta, evenfun)$
  
-_dev(u):= if u#0 then 0 else inf $
-_unit(u):= if u<0 then 0 else 1 $
+ ( "basic infinitesimals",
+	assume(zeroa > 0),
+	assume(zerob < 0),
+	declare(infinitesimal, feature),
+	declare(zeroa, infinitesimal),
+	declare(zerob, infinitesimal),
+	infimp (x):= featurep (x, infinitesimal)
+ )$
+ 
+"tellsimp(delta(u), _delta(u))";
   
+_delta(u):= (if (u#0 and u # 0.0 and u # zeroa and u # zerob) then 0 
+else 1/zeroa) $
+
+_unit(x):= (
+	if x<0 then (0) else 
+	if x>0 then (1)  
+	else (1/2)
+)$
+ 
 (matchdeclare (x, atom),
-	defrule (ddev1, delta(x), _dev(x)),
+	defrule (ddev1, delta(x), _delta(x)),
 	defrule (ddunit, unit(x), _unit(x))
  )$
  
-(matchdeclare (x, lambda([u], not(constantp(u))), c, constantp),
+(matchdeclare (x, lambda([u], not(constantp(u))), c, atom),
 	defrule (ddscale, delta(c*x), 1/abs(c)*delta(x))
  )$
  
-(matchdeclare ([z,  u ], symbolp,  fn, symbolp, n, intvalp),
-	defrule (ddint1, 'integrate(delta(z-u), u ), z),
+(matchdeclare (z, atom, [u], symbolp,  fn, symbolp, n, intvalp),
+	defrule (ddint1, 'integrate(delta(z-u)*u, u ), unit(z)),
+	defrule (ddint10, 'integrate(delta(z+u)*u, u ), -unit(z)),
 	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z)),
-	defrule (ddint21, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff (fn(z), z, n) ),
+	defrule (ddint21, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff(fn(z), z, n) ),
 	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
 	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
 	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u),
-	-'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
+	- 'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
 	defrule (dderiv21, 'integrate('diff(delta(z-u), u, n)*fn(u), u),
-	-'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) )
+	- 'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) ),
+	defrule (dderiv23, 'integrate('diff(delta(z-u), u, n)*fn(u), u),
+	(- 1)^n * 'integrate(delta(z-u)*diff (fn(u), u, n), u) )
 )$
 
 (matchdeclare (x, atom, n, intvalp),
@@ -66,21 +88,23 @@ defmatch (ddarg, %deltam*delta (%darg))
 
 fdroot(V, x):=block( [rts, n, i:1, s:0, dfn, sd, xi ],
 	rts:solve(V=0,x),
-	if emptyp(rts) then return (false)
+	if emptyp(rts) then return (delta(V))
 	else (
 		n:length(rts),
 		dfn:diff (V, x),
 		for i:1 thru n do (
 			xi:part(rts[i],2),
 			sd:subst(x=xi, dfn), "print (xi, dfn, sd)",
-			s:s+delta(x-xi)/abs(sd)
+			if (sd #0) then
+				s:s+delta(x-xi)/abs(sd)
+			else s: delta(V)
 		),
 		return (s)
 	)
 )$ 
 
 fdroot2(V):=block ( [ vl: listofvars (V), v ] ,
-	if length(vl)>1 then return (false),
+	if length(vl)>1 then return (delta(V)),
 	v:vl[1],
 	return (fdroot(V, v))
 )$
@@ -91,8 +115,8 @@ delta_rules : sublist (rules, lambda ([a], smismatch ("dd", sconcat (a)) = 3 and
 
 simp_delta(x):=apply(apply1, cons('x, delta_rules))$
 
-eval_delta(x):=apply1(ret, ddev1, ddunit)$
+eval_delta(x):=apply1(x, ddev1, ddunit)$
 
-put('deltafn, 1.1, 'version);
+put('deltafn, 1.2, 'version);
 put('deltafn, "Dimiter Prodanov", 'author);
 put('deltafn, "(C) - Dimiter Prodanov, 2014", 'copyright);
