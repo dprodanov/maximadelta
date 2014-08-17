@@ -1,8 +1,9 @@
 /*
  * (C) Dimiter Prodanov
  *
- * @version 1.1 Data 28 June 2014 
- *		1.1 Date 29 April 2014
+ * @version 1.2.5 Date 17 Aug 2014
+		   1.2 Data 28 June 2014 
+ *		   1.1 Date 29 April 2014
  *
  * @author Dimiter Prodanov
  * 		  IMEC
@@ -25,21 +26,57 @@
  *      Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
  
+deltainfo([_package]):=
+block(
+	disp("package name: deltafn.mac (c)"),
+	disp("author: Dimiter Prodanov"),
+	disp("major version: 1"),
+	disp("minor version: 2"),
+	disp("Recommended location: share/contrib"),
+	disp("last update: 29 June, 2014"),
+	disp("")
+)$
+ 
  declare (delta, evenfun)$
+ 
+ if get('deltafn,'version)=false then ( 
+	_macheps():=block ( [macheps],
+	macheps:1.0,
+	while not equal(float(1.0 + macheps/2.0), 1.0) do (
+		macheps : float(macheps/2.0)
+	),
+	return (macheps)
+	),
+	_epsilon: _macheps()
+ )$
  
  ( "basic infinitesimals",
 	assume(zeroa > 0),
 	assume(zerob < 0),
+	assume(zeroa < _epsilon),
+	assume(zerob >- _epsilon),
 	declare(infinitesimal, feature),
 	declare(zeroa, infinitesimal),
 	declare(zerob, infinitesimal),
-	infimp (x):= featurep (x, infinitesimal)
+	infimp(x):= featurep (x, infinitesimal),
+	"basic unlimited",
+	declare(unlimited, feature),
+	unlimp(x):= featurep (x, unlimited)
  )$
  
-"tellsimp(delta(u), _delta(u))";
-  
-_delta(u):= (if (u#0 and u # 0.0 and u # zeroa and u # zerob) then 0 
+
+
+/*  
+tellsimp(delta(u), _delta(u)) 
+_delta(u):= block(
+if (u#0 and u # 0.0 and u # zeroa and u # zerob) then 0 
 else 1/zeroa) $
+*/
+
+_delta(x):= block(
+	if infimp(x) or abs(x)<=zeroa then return (1/zeroa/2) 
+	else return (0) 
+ )$
 
 _unit(x):= (
 	if x<0 then (0) else 
@@ -56,22 +93,47 @@ _unit(x):= (
 	defrule (ddscale, delta(c*x), 1/abs(c)*delta(x))
  )$
  
-(matchdeclare (z, atom, [u], symbolp,  fn, symbolp, n, intvalp),
-	defrule (ddint1, 'integrate(delta(z-u)*u, u ), unit(z)),
-	defrule (ddint10, 'integrate(delta(z+u)*u, u ), -unit(z)),
-	defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z)),
-	defrule (ddint21, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff(fn(z), z, n) ),
-	defrule (ddint3, 'integrate(delta(u), u), unit(u)),
-	defrule (ddint4, 'integrate(delta(u), u, -inf, inf ), 1),
-	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u),
-	- 'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
-	defrule (dderiv21, 'integrate('diff(delta(z-u), u, n)*fn(u), u),
-	- 'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) ),
-	defrule (dderiv23, 'integrate('diff(delta(z-u), u, n)*fn(u), u),
-	(- 1)^n * 'integrate(delta(z-u)*diff (fn(u), u, n), u) )
+/* shifting rules 
+ */
+(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp),
+	defrule (ddint1, 'integrate(delta(z-u), u ), unit(z)),
+	defrule (ddint11, 'integrate(delta(c-u), u ), unit(c)),
+	"defrule (ddint1, 'integrate(delta(z-u), u ), z)",
+	"defrule (ddint10, 'integrate(delta(z+u), u ), -z)"
+)$
+
+/* function rules 
+ */
+(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp, fn, true),
+	defrule (ddint3, 'integrate(delta(z-u)*fn(u), u, minf, inf), fn(z))
+)$
+
+/*
+matchdeclare (aa, all, xx, symbolp);
+simp : false;
+defrule (r1, 'integrate(delta(xx)*aa, xx, minf, inf), subst (xx = 0, aa));
+simp : true;
+*/
+
+(matchdeclare (aa, all, xx, symbolp), 
+	simp : false,
+	defrule (ddint2, 'integrate(delta(xx)*aa, xx, minf, inf), subst (xx = 0, aa)),
+	simp : true
+)$
+
+
+(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp, fn, symbolp, n, intvalp),
+	"defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z))",
+	"defrule (ddint21, 'integrate(delta(u)*fn(u), u), fn(0))",
+	defrule (ddint22, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff(fn(z), z, n) ),
+	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u), - 'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
+	defrule (dderiv21, 'integrate('diff(delta(z-u), u, n)*fn(u), u), - 'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) ),
+	defrule (dderiv23, 'integrate('diff(delta(z-u), u, n)*fn(u), u), (- 1)^n * 'integrate(delta(z-u)*diff (fn(u), u, n), u) )
 )$
 
 (matchdeclare (x, atom, n, intvalp),
+	defrule (ddint3, 'integrate(delta(x), x), unit(x)),
+	defrule (ddint4, 'integrate(delta(x), x, -inf, inf ), 1),
 	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(x)*factorial (n) )
 )$
 
