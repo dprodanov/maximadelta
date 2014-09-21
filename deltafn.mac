@@ -1,9 +1,10 @@
 /*
  * (C) Dimiter Prodanov
  *
- * @version 1.2.5 Date 17 Aug 2014
-		   1.2 Data 28 June 2014 
- *		   1.1 Date 29 April 2014
+ * @version   1.2.6 Date 22 Sept 2014
+		      1.2.5 Date 17 Aug 2014
+		      1.2 Data 28 June 2014 
+ *		      1.1 Date 29 April 2014
  *
  * @author Dimiter Prodanov
  * 		  IMEC
@@ -31,50 +32,40 @@ block(
 	disp("package name: deltafn.mac (c)"),
 	disp("author: Dimiter Prodanov"),
 	disp("major version: 1"),
-	disp("minor version: 2"),
+	disp("minor version: 3"),
 	disp("Recommended location: share/contrib"),
-	disp("last update: 29 June, 2014"),
+	disp("last update: 21 Sept 2014"),
 	disp("")
 )$
  
- declare (delta, evenfun)$
+declare (delta, evenfun)$
  
- if get('deltafn,'version)=false then ( 
-	_macheps():=block ( [macheps],
+_macheps():=block ( [macheps],
 	macheps:1.0,
 	while not equal(float(1.0 + macheps/2.0), 1.0) do (
-		macheps : float(macheps/2.0)
+		macheps:float(macheps/2.0)
 	),
 	return (macheps)
-	),
-	_epsilon: _macheps()
+)$
+
+numcalibrate(%fp):=(
+	fpprec:%fp,
+ 	assume(zeroa < 1/2^fpprec),
+	assume(zerob >- 1/2^fpprec)
+)$
+
+ if get('deltafn,'version)=false then ( 
+	ratepsilon: _macheps(),
+	fpprec:-fix(log(ratepsilon)/log(2)),
+	assume(zeroa >0),
+	assume(zerob <0),
+	numcalibrate(fpprec)
  )$
  
- ( "basic infinitesimals",
-	assume(zeroa > 0),
-	assume(zerob < 0),
-	assume(zeroa < _epsilon),
-	assume(zerob >- _epsilon),
-	declare(infinitesimal, feature),
-	declare(zeroa, infinitesimal),
-	declare(zerob, infinitesimal),
-	infimp(x):= featurep (x, infinitesimal),
-	"basic unlimited",
-	declare(unlimited, feature),
-	unlimp(x):= featurep (x, unlimited)
- )$
- 
 
-
-/*  
-tellsimp(delta(u), _delta(u)) 
-_delta(u):= block(
-if (u#0 and u # 0.0 and u # zeroa and u # zerob) then 0 
-else 1/zeroa) $
-*/
-
+ /* delta function for numenrical applications*/
 _delta(x):= block(
-	if infimp(x) or abs(x)<=zeroa then return (1/zeroa/2) 
+	if abs(x)<=ratepsilon then return (1/(2*ratepsilon)) 
 	else return (0) 
  )$
 
@@ -92,28 +83,28 @@ _unit(x):= (
 (matchdeclare (x, lambda([u], not(constantp(u))), c, atom),
 	defrule (ddscale, delta(c*x), 1/abs(c)*delta(x))
  )$
- 
+
 /* shifting rules 
  */
-(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp),
+(matchdeclare (u, lambda([x], not(constantp(x)) and atom(u)), z, atom, c, constantp),
 	defrule (ddint1, 'integrate(delta(z-u), u ), unit(z)),
 	defrule (ddint11, 'integrate(delta(c-u), u ), unit(c)),
 	"defrule (ddint1, 'integrate(delta(z-u), u ), z)",
 	"defrule (ddint10, 'integrate(delta(z+u), u ), -z)"
 )$
 
+/*
+	dsubst1(f, u, c):=block ([z],
+		subst(u=c, f(u))
+	);
+*/
+
 /* function rules 
  */
-(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp, fn, true),
-	defrule (ddint3, 'integrate(delta(z-u)*fn(u), u, minf, inf), fn(z))
+(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, fn, symbolp, [ _ai, _as ], atom),
+	defrule (ddint3, 'integrate(delta(z-u)*fn(u), u, minf, inf), fn(z)),
+	defrule (ddint31, 'integrate(delta(z-u)*fn(u), u, _ai, _as), umatch(fn(z), _ai, _as))
 )$
-
-/*
-matchdeclare (aa, all, xx, symbolp);
-simp : false;
-defrule (r1, 'integrate(delta(xx)*aa, xx, minf, inf), subst (xx = 0, aa));
-simp : true;
-*/
 
 (matchdeclare (aa, all, xx, symbolp), 
 	simp : false,
@@ -121,20 +112,29 @@ simp : true;
 	simp : true
 )$
 
-
-(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom, c, constantp, fn, symbolp, n, intvalp),
-	"defrule (ddint2, 'integrate(delta(z-u)*fn(u), u), fn(z))",
-	"defrule (ddint21, 'integrate(delta(u)*fn(u), u), fn(0))",
-	defrule (ddint22, 'integrate(delta(z-u)*'diff (fn(u), u, n), u), diff(fn(z), z, n) ),
-	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u), - 'integrate('diff(delta(u), u, n-1)*diff (fn(u), u, 1), u) ),
-	defrule (dderiv21, 'integrate('diff(delta(z-u), u, n)*fn(u), u), - 'integrate('diff(delta(z-u), u, n-1)*diff (fn(u), u, 1), u) ),
-	defrule (dderiv23, 'integrate('diff(delta(z-u), u, n)*fn(u), u), (- 1)^n * 'integrate(delta(z-u)*diff (fn(u), u, n), u) )
+(matchdeclare (u, lambda([u], not(constantp(u)) and atom(u)), z, atom,  fn, symbolp, n, intvalp),
+	defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u, minf, inf ), dsubst(fn, u, n) ),
+	defrule (dderiv21, 'integrate('diff(delta(u), u, n)*fn(u), u, _ai, _as ), dsubst(fn, u, n)*umatch(1, _ai, _as)),
+	
+	dsubst(f, u, n):=block ([z],
+		if not intvalp(n) then return (f),
+		z:(-1)^n * diff (f(u), u, n),
+		subst(u=0, z)
+	),
+	
+	/*defrule (dderiv2, 'integrate('diff(delta(u), u, n)*fn(u), u), (-1)^n * 'integrate(delta(u)*diff (fn(u), u, n), u) ), */
+	defrule (dderiv23, 'integrate('diff(delta(z-u), u, n)*fn(u), u), (-1)^n * 'integrate(delta(z-u)*diff (fn(u), u, n), u) )
 )$
 
-(matchdeclare (x, atom, n, intvalp),
+(matchdeclare (x, atom, n, intvalp, [ _ai, _as ], atom),
 	defrule (ddint3, 'integrate(delta(x), x), unit(x)),
-	defrule (ddint4, 'integrate(delta(x), x, -inf, inf ), 1),
+	defrule (ddint4, 'integrate(delta(x), x, minf, inf ), 1),
+	defrule (ddint41, 'integrate(delta(x), x,  _ai, _as), umatch(1, _ai, _as)),
 	defrule (dderiv1, 'diff(delta(x), x, n), 1/(-x)^n *delta(x)*factorial (n) )
+)$
+
+umatch(f, a, b):=(
+	if a<0 and b>0 then f else 0
 )$
 
 intvalp(x):= integerp(x) or featurep(x, integer)$
@@ -179,6 +179,6 @@ simp_delta(x):=apply(apply1, cons('x, delta_rules))$
 
 eval_delta(x):=apply1(x, ddev1, ddunit)$
 
-put('deltafn, 1.2, 'version);
+put('deltafn, 1.3, 'version);
 put('deltafn, "Dimiter Prodanov", 'author);
 put('deltafn, "(C) - Dimiter Prodanov, 2014", 'copyright);
