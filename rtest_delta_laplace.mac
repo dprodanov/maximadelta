@@ -1,0 +1,59 @@
+/* ---- specint: same convention as laplace ---- */
+
+/* ---- ilt: linear delta argument ---- */
+ilt(delta(s),s,t);
+1;
+ilt(delta(s-1)*exp(-s)/s,s,t);
+%e^(t-1);
+ilt(delta(2*s-2)*exp(-s)/s,s,t);
+%e^(t-1)/2;
+ilt(delta(s)*exp(-s)/(s+1),s,t);
+1;
+
+/* ---- ilt: singular g at the root, products of deltas, repeated root ---- */
+ilt(delta(s)/s,s,t);
+'ilt(delta(s)/s,s,t);
+ilt(delta(s)*log(s),s,t);
+'ilt(delta(s)*log(s),s,t);
+ilt(delta(s)/sqrt(s),s,t);
+'ilt(delta(s)/sqrt(s),s,t);
+ilt(delta(s)*delta(s-1),s,t);
+'ilt(delta(s-1)*delta(s),s,t);
+ilt(delta(s)^2,s,t);
+'ilt(delta(s)^2,s,t);
+ilt(delta(s)*delta(2*s),s,t);
+'ilt(delta(s)*delta(2*s),s,t);
+ilt(delta(s^2),s,t);
+'ilt(delta(s^2),s,t);
+
+/* ---- ilt: polynomial argument gives an lsum over rootsof ---- */
+freeof(rootsof, ilt(delta(s^2-1),s,t));
+false;
+freeof(rootsof, ilt(delta(s^2+1),s,t));
+false;
+
+assume(s>0);
+[s>0];
+laplace(delta(t),t,s);
+1;
+specint(delta(x)*exp(-x*s),x);
+1;
+specint(delta(x-2)*exp(-x*s),x);
+%e^(-(2*s));
+specint(delta(2*x-4)*exp(-x*s),x);
+%e^(-(2*s))/2;
+specint(delta(x+2)*exp(-x*s),x);
+0;
+
+/* ---- specint: singular g and repeated root stay unevaluated ---- */
+specint(delta(x)/x*exp(-x*s),x);
+'specint((%e^(-(s*x))*delta(x))/x,x);
+specint(delta(x^2)*exp(-x*s),x);
+'specint(%e^(-(s*x))*delta(x^2),x);
+
+/* ---- specint: polynomial argument gives an lsum over rootsof ---- */
+freeof(rootsof, specint(delta(x^2-1)*exp(-x*s),x));
+false;
+
+forget(s>0);
+[s>0];
