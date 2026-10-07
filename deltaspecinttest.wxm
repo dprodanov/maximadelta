@@ -1,0 +1,17 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 26.08.0 ] */
+/* [wxMaxima: input   start ] */
+load("delta-util.lisp");
+/* [wxMaxima: input   end   ] */
+/* [wxMaxima: input   start ] */
+load("hypgeo.lisp");
+/* [wxMaxima: input   end   ] */
+/* [wxMaxima: input   start ] */
+load("laplac.lisp");
+/* [wxMaxima: input   end   ] */
+/* [wxMaxima: input   start ] */
+batch("rtest_delta_laplace.mac", test)$
+/* [wxMaxima: input   end   ] */
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 26.08.0"$
