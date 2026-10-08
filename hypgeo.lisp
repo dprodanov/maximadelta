@@ -996,29 +996,93 @@
      (delta-transform
       exp var
       :linear (lambda (a b rest)
-                (let* ((x0 (div (neg b) a))
-                       (im ($imagpart x0))
-                       (sg (let ((s0 ($sign x0)))
-                             (if (member s0 '($pos $neg $zero)) s0 ($asksign x0)))))
-                  (cond ((and (freeof '%imagpart im) (not (zerop1 im))) 0)
-                        ((eq sg '$neg) 0)
-                        (t (let ((g (delta-g-at x0 var rest)))
-                             (when g
-                               (mul g (inv (simplifya (list '(mabs) a) nil)))))))))
+          (let* ((x0 (div (neg b) a))
+                 (im ($imagpart x0)))
+            (if (and (freeof '%imagpart im) (not (zerop1 im)))
+                0                                   ; complex root: off the real line
+                (let* ((s0 ($sign x0))
+                       (sg (if (member s0 '($pos $neg $zero))
+                               s0
+                               ($asksign x0))))
+                  (if (eq sg '$neg)
+                      0
+                      (let ((g (delta-g-at x0 var rest)))
+                        (when g
+                          (mul g (inv (simplifya (list '(mabs) a) nil))))))))))
       :term     (lambda (e) (list (list ($nounify '$specint)) e var))
       :fallback (lambda () nil)))
 
+;;;;;;;;;;;;;;;;;
+;; Fermi type of integrals
+;;; specint of c*exp(-p*var)/(exp(a*var)+1), a free of VAR.  Returns NIL if
+;;; the integrand does not have this shape or convergence is not established.
+
+(defun fermi-a (f var)
+  "If F is 1/(1+exp(a*var)) return a, else NIL."
+  (and (consp f) (eq (caar f) 'mexpt) (eql (caddr f) -1)
+       (let ((b (cadr f)))
+         (and (consp b) (eq (caar b) 'mplus) (= (length (cdr b)) 2)
+              (let ((one (find 1 (cdr b) :test #'equal))
+                    (ex  (find-if (lambda (x)
+                                    (and (consp x) (eq (caar x) 'mexpt)
+                                         (eq (cadr x) '$%e)))
+                                  (cdr b))))
+                (when (and one ex)
+                  (let ((ab (islinear (caddr ex) var)))
+                    (when (and ab (zerop1 (cdr ab)) (not (zerop1 (car ab))))
+                      (car ab)))))))))
+
+(defun fermi-sign (x)
+  (let ((s ($sign x)))
+    (if (member s '($pos $neg $zero)) s ($asksign x))))
+
+(defun fermi-psi (x)
+  (simplifya (list '(mqapply) (list '($psi array) 0) x) nil))
+
+(defun fermi-f (p a)
+  (mul (inv (mul 2 a))
+       (sub (fermi-psi (div (add (div p a) 2) 2))
+            (fermi-psi (div (add (div p a) 1) 2)))))
+
+(defun specint-fermi (exp var)
+  (let* ((factors (cond ((atom exp) nil)
+                        ((eq (caar exp) 'mtimes) (cdr exp))
+                        (t (list exp)))))
+    (dolist (f factors)
+      (let ((a (fermi-a f var)))
+        (when a
+          (let* ((r  (fixuprest (remove f factors :count 1 :test #'eq)))
+                 (p  (neg (div (sdiff r var) r)))
+                 (c  ($ratsimp (mul r (exponentiate (mul p var))))))
+            (when (and (freeof var p) (freeof var c))
+              (return
+                (case (fermi-sign a)
+                  ($pos (when (eq (fermi-sign (add p a)) '$pos)
+                          (mul c (fermi-f p a))))
+                  ($neg (let ((b (neg a)))
+                          (when (eq (fermi-sign p) '$pos)
+                            (mul c (sub (inv p) (fermi-f p b))))))
+                  (t nil))))))))))
+                  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; $specint is the Maxima User function
 
+; (defmfun $specint (expr var2)
+  ; (prog ($radexpand *checkcoefsignlist*)
+     ; (setq $radexpand '$all)
+      ; (let ((r (specint-delta expr var2)))
+         ; (when r (return-from $specint r)))
+     ; (return (defintegrate expr var2))))
 (defmfun $specint (expr var2)
-  (prog ($radexpand *checkcoefsignlist*)
+  (prog ($radexpand *checkcoefsignlist* r)
      (setq $radexpand '$all)
-      (let ((r (specint-delta expr var2)))
-         (when r (return-from $specint r)))
+     (setq r (specint-delta expr var2))
+     (when r (return r))
+     (setq r (specint-fermi expr var2))
+     (when r (return r))
      (return (defintegrate expr var2))))
-
+     
 (defun defintegrate (expr var2)
   ;; This used to have $exponentialize enabled for everything, but I
   ;; don't think we should do that.  If various routines want

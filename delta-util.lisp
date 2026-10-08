@@ -42,6 +42,36 @@ polynomial F of degree >= 2 with simple roots, else NIL."
         (list (list ($nounify '$lsum)) body r
               (list '($rootsof) (maxima-substitute r var f) r))))))
 
+(defun delta-solve-param-p (x)
+  "True if X is a symbol introduced by SOLVE for infinite families."
+  (and (symbolp x)
+       (let ((n (symbol-name x)))
+         (and (> (length n) 2)
+              (member (subseq n 0 3) '("$%z" "$%r" "$%c") :test #'string=)))))
+
+(defun delta-solve-sum (f rest var linear)
+  "Sum over explicit simple roots of F of LINEAR(1,-x_i,REST)/|f'(x_i)|.
+NIL if SOLVE gives no finite explicit list, a root is repeated, or g is
+singular at a root."
+  (let ((sol (let ((errset nil) (errcatch t) ($errormsg nil) (*mdebug* nil))
+               (car (errset ($solve f var)))))
+        (fp  (sdiff f var))
+        (terms nil))
+    (when (and sol (consp sol) (eq (caar sol) 'mlist) (cdr sol))
+      (dolist (e (cdr sol))
+        (unless (and (consp e) (eq (caar e) 'mequal) (eq (cadr e) var))
+          (return-from delta-solve-sum nil))
+        (let* ((x0 (caddr e))
+               (dp (maxima-substitute x0 var fp)))
+          (when (some #'delta-solve-param-p (cdr ($listofvars x0)))
+            (return-from delta-solve-sum nil))
+          (when (zerop1 ($ratsimp dp))
+            (return-from delta-solve-sum nil))
+          (let ((val (funcall linear 1 (neg x0) rest)))
+            (unless val (return-from delta-solve-sum nil))
+            (push (mul val (inv (simplifya (list '(mabs) dp) nil))) terms))))
+      (addn terms nil))))
+      
 (defun delta-transform (exp var &key linear term fallback)
   "Common driver.  Returns NIL if EXP has no top-level delta factor.
 LINEAR  (a b rest) -> value for delta(a*var+b), or NIL if singular.
@@ -55,5 +85,6 @@ FALLBACK ()        -> result when a delta is present but not handled."
                   ((and ab (not (zerop1 (car ab))))
                    (funcall linear (car ab) (cdr ab) rest))
                   (ab nil)
-                  (t (delta-poly-sum f rest var term)))
+                  (t (or (delta-poly-sum f rest var term)
+                         (delta-solve-sum f rest var linear))))
             (funcall fallback))))))
